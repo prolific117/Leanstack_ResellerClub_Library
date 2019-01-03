@@ -66,7 +66,7 @@ public class SubscriptionCreationService extends BaseClass{
         
             List<Entry> entries = data.entries;
             //List
-            System.out.print(entries.get(0).values.get(0));
+            System.out.print(entries.get(3).values.get(1));
         
             if("error".equals(entries.get(0).values.get(1))){
                 resp.setMessage(entries.get(1).values.get(1));
@@ -74,7 +74,7 @@ public class SubscriptionCreationService extends BaseClass{
             }
             else{
                 resp.setCode(0);
-                resp.setMessage(entries.get(10).values.get(1));
+                resp.setMessage(entries.get(3).values.get(1));
                 return resp;
             }
           
