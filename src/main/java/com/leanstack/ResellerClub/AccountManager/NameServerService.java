@@ -11,8 +11,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leanstack.ResellerClub.responses.DomainSearchResponse;
+import com.leanstack.ResellerClub.responses.DomainTransferResponse;
 import com.leanstack.ResellerClub.responses.ErrorResponse;
 import com.leanstack.ResellerClub.responses.ErrorResponseJson;
+import com.leanstack.ResellerClub.responses.NameServerResponse;
 import com.leanstack.ResellerClub.responses.ResellerResponse;
 import com.leanstack.ResellerClub.responses.SuggestionResponse;
 import java.io.IOException;
@@ -36,29 +38,55 @@ import org.apache.commons.lang3.StringUtils;
  *
  * @author prolific
  */
-public class SuggestionService extends BaseClass {
+public class NameServerService extends BaseClass {
     
     private static final Logger logger = Logger.getLogger(SuggestionService.class.getName());
   
-    public SuggestionService(String service, String login, String key){
+    public NameServerService(String service, String login, String key){
         super(service, login , key);
         
     }
     
-    public SuggestionResponse search(String domain_name, String tld, List<String> tlds) {
+    private String getOrderId(String domainName){
+      String orderUrl = this.getKA_SERVICE()+
+                  "domains/orderid.json?auth-userid="+this.getREMOTE_API_LOGIN()+""
+                 + "&api-key="+this.getAPIKEY()+"&domain-name="+domainName;
+       
+       OkHttpClient client = new OkHttpClient();
+       ObjectMapper mapper = new ObjectMapper();
+         
+       try {
+            Request request = new Request.Builder()
+              .url(orderUrl)
+              .get()
+              .addHeader("Cache-Control", "no-cache")
+              .build();
+
+            String response = client.newCall(request).execute().body().string();
+            
+            return response;
+          
+        } catch (Exception ex) {
+            logger.log(Level.SEVERE, "Exception found in create reseller club account", ex);
+            
+        }
+     
+     return "";     
+    }
+    
+    public ResellerResponse update(String domain_name, String ns1, String ns2) {
         
-         SuggestionResponse resp = new SuggestionResponse();
+         ResellerResponse resp = new ResellerResponse();
          resp.setCode(10);
-         
-         String suggestion = "";
-         for(String val : tlds){
-             suggestion += "&tld-only="+val;
-         }
-         
+         String orderId = getOrderId(domain_name);
+         //System.out.print("Order id is "+orderId);
+        
          String url = this.getKA_SERVICE()
-                 +"domains/v5/suggest-names?auth-userid="+this.getREMOTE_API_LOGIN()+""
-                 + "&api-key="+this.getAPIKEY()+"&no-of-results=10&exact-match=False&"
-                 + "keyword="+domain_name+suggestion;
+                 +"domains/modify-ns.json?auth-userid="+this.getREMOTE_API_LOGIN()+""
+                 + "&api-key="+this.getAPIKEY()
+                 + "&ns="+ns1
+                 + "&ns="+ns2
+                 + "&order-id="+orderId;
          
          OkHttpClient client = new OkHttpClient();
          ObjectMapper mapper = new ObjectMapper();
@@ -73,15 +101,20 @@ public class SuggestionService extends BaseClass {
             String response = client.newCall(request).execute().body().string();
              
             //System.out.print(response);
-            List<String> availableDomains = parseJsonSpecification(response);
-            for(String available : availableDomains){
-                System.out.print(available + "\n");
+            NameServerResponse resp_ = mapper.readValue(response,  NameServerResponse.class);
+           
+            //System.out.print(resp_.getStatus());
+            if(!"error".equals(resp_.getStatus()) && !"ERROR".equals(resp_.getStatus()) ){
+                resp.setCode(0);
+                resp.setMessage(resp_.getStatus());
             }
-            
-            resp.setCode(0);
-            resp.setAvailableDomains(availableDomains);
+            else{
+                resp.setMessage(resp_.getMessage());
+            }
                 
+            System.out.print(resp.getMessage());
             return resp;
+            
         } catch (Exception ex) {
             logger.log(Level.SEVERE, "Exception found in search domain name", ex);
             resp.setMessage("An error occured");
@@ -90,24 +123,6 @@ public class SuggestionService extends BaseClass {
         }
     }
     
-    public List<String> parseJsonSpecification(String jsonString) throws IOException {
-        JsonFactory factory = new JsonFactory();
-        
-        List<String> availableDomains = new ArrayList<>();
-
-        ObjectMapper mapper = new ObjectMapper(factory);
-        JsonNode rootNode = mapper.readTree(jsonString);  
-
-        Iterator<Map.Entry<String,JsonNode>> fieldsIterator = rootNode.fields();
-        while (fieldsIterator.hasNext()) {
-
-            Map.Entry<String,JsonNode> field = fieldsIterator.next();
-            //System.out.println("Key: " + field.getKey() + "\tValue:" + field.getValue());
-            
-            availableDomains.add(field.getKey());
-        }
-        
-        return availableDomains;
-    }
+   
 }
 
